@@ -1,9 +1,46 @@
 # Mykare Voice AI — Healthcare Front-Desk Agent
 
-A production-ready, end-to-end voice AI system for healthcare front-desk operations.
+> A production-ready, end-to-end voice AI system for healthcare front-desk operations — powered by LiveKit, Deepgram, OpenRouter (Llama 3.3 70B), and Cartesia.
+
+---
+
+## Architecture
 
 ```
-User Speech → Deepgram STT → OpenRouter (Meta Llama 3.3 70B) → Healthcare Tools → Cartesia TTS → LiveKit Agent → React Frontend
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          MYKARE VOICE AI PIPELINE                       │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  ┌──────────┐     ┌───────────────┐     ┌──────────────────────────┐
+  │  User    │────▶│  Deepgram     │────▶│  OpenRouter              │
+  │  Speech  │     │  Nova-2 (STT) │     │  Llama 3.3 70B (LLM)    │
+  └──────────┘     └───────────────┘     │  ── fallback: Grok Beta ─│
+                                         └────────────┬─────────────┘
+                                                      │
+                                         ┌────────────▼─────────────┐
+                                         │   Healthcare Tools (×8)  │
+                                         │  identify_user           │
+                                         │  register_patient        │
+                                         │  fetch_slots             │
+                                         │  book_appointment        │
+                                         │  retrieve_appointments   │
+                                         │  modify_appointment      │
+                                         │  cancel_appointment      │
+                                         │  end_conversation        │
+                                         └────────────┬─────────────┘
+                                                      │
+  ┌──────────┐     ┌───────────────┐     ┌────────────▼─────────────┐
+  │  React   │◀────│  LiveKit      │◀────│  Cartesia                │
+  │  Frontend│     │  Agent        │     │  Sonic-2 (TTS)           │
+  │  (UI)    │     │  (Transport)  │     └──────────────────────────┘
+  └──────────┘     └───────────────┘
+        │
+        │   LiveKit Data Channels
+        ├── transcript   → real-time STT / LLM turn text
+        ├── tool-events  → live tool status updates
+        ├── appointments → appointment list after mutations
+        ├── summary      → end-of-call summary JSON
+        └── state        → speaking / listening (avatar sync)
 ```
 
 ---
@@ -11,13 +48,13 @@ User Speech → Deepgram STT → OpenRouter (Meta Llama 3.3 70B) → Healthcare 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Voice transport | LiveKit Agents 1.6.3 (Agent + AgentSession architecture) |
-| STT | Deepgram Nova-2 |
-| TTS | Cartesia Sonic-2 |
-| LLM primary | OpenRouter — meta-llama/llama-3.3-70b-instruct:free |
-| LLM fallback | Grok (grok-beta via api.x.ai) |
-| Avatar | Beyond Presence (optional animated fallback) |
+|---|---|
+| Voice transport | LiveKit Agents 1.6.3 (Agent + AgentSession) |
+| Speech-to-text | Deepgram Nova-2 |
+| Text-to-speech | Cartesia Sonic-2 |
+| LLM (primary) | OpenRouter — `meta-llama/llama-3.3-70b-instruct:free` |
+| LLM (fallback) | Grok Beta via `api.x.ai` |
+| Avatar (optional) | Beyond Presence animated agent |
 | Backend | FastAPI + Python 3.11.9 |
 | Database | SQLite + SQLAlchemy (async) |
 | Frontend | React 19 + Vite 7 |
@@ -30,26 +67,48 @@ User Speech → Deepgram STT → OpenRouter (Meta Llama 3.3 70B) → Healthcare 
 mykare-voice-ai/
 ├── backend/
 │   ├── app/
-│   │   ├── agent/          voice_agent.py  — LiveKit Agent + AgentSession
-│   │   ├── api/            routes.py, websocket.py
-│   │   ├── db/             database.py, models.py
-│   │   ├── schemas/        schemas.py
-│   │   ├── services/       llm_service.py, stt_service.py, tts_service.py
-│   │   ├── tools/          appointment_tools.py  (8 tools)
-│   │   ├── utils/          logger.py, token.py
+│   │   ├── agent/
+│   │   │   └── voice_agent.py        # LiveKit Agent + AgentSession
+│   │   ├── api/
+│   │   │   ├── routes.py
+│   │   │   └── websocket.py
+│   │   ├── db/
+│   │   │   ├── database.py
+│   │   │   └── models.py
+│   │   ├── schemas/
+│   │   │   └── schemas.py
+│   │   ├── services/
+│   │   │   ├── llm_service.py
+│   │   │   ├── stt_service.py
+│   │   │   └── tts_service.py
+│   │   ├── tools/
+│   │   │   └── appointment_tools.py  # 8 healthcare tools
+│   │   ├── utils/
+│   │   │   ├── logger.py
+│   │   │   └── token.py
 │   │   └── config.py
-│   ├── main.py             FastAPI entry point
-│   ├── agent_worker.py     LiveKit worker entry point
+│   ├── main.py                       # FastAPI entry point
+│   ├── agent_worker.py               # LiveKit worker entry point
 │   ├── requirements.txt
 │   └── .env.example
 └── frontend/
     ├── src/
-    │   ├── components/     Avatar, VoiceControls, TranscriptPanel,
-    │   │                   ToolActivityPanel, AppointmentPanel, SummaryPanel
-    │   ├── hooks/          useLiveKit.js, useVoiceAgent.js
-    │   ├── pages/          Dashboard.jsx
-    │   ├── services/       api.js
-    │   └── styles/         index.css
+    │   ├── components/
+    │   │   ├── Avatar
+    │   │   ├── VoiceControls
+    │   │   ├── TranscriptPanel
+    │   │   ├── ToolActivityPanel
+    │   │   ├── AppointmentPanel
+    │   │   └── SummaryPanel
+    │   ├── hooks/
+    │   │   ├── useLiveKit.js
+    │   │   └── useVoiceAgent.js
+    │   ├── pages/
+    │   │   └── Dashboard.jsx
+    │   ├── services/
+    │   │   └── api.js
+    │   └── styles/
+    │       └── index.css
     ├── package.json
     └── .env.example
 ```
@@ -61,9 +120,9 @@ mykare-voice-ai/
 - Python 3.11.9
 - Node.js 20+
 - A running LiveKit server (local or cloud)
-- API keys: OpenRouter, Deepgram, Cartesia, (optional) Grok, (optional) Beyond Presence
+- API keys for: OpenRouter, Deepgram, Cartesia, and optionally Grok and Beyond Presence
 
-### Quick LiveKit server (Docker)
+### Start a local LiveKit server (Docker)
 
 ```bash
 docker run --rm \
@@ -76,24 +135,24 @@ docker run --rm \
 
 ## Setup
 
-### 1. Backend
+### Backend
 
 ```bash
 cd backend
 
-# Create virtual environment
+# Create and activate virtual environment
 python3.11 -m venv venv
 source venv/bin/activate          # Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure environment
+# Configure environment variables
 cp .env.example .env
 # Edit .env and fill in your API keys
 ```
 
-### 2. Frontend
+### Frontend
 
 ```bash
 cd frontend
@@ -108,10 +167,9 @@ cp .env.example .env
 
 ## Running Locally
 
-Open **4 terminal windows**.
+Open **4 terminal windows** and run each process in its own window.
 
-### Terminal 1 — LiveKit server
-
+**Terminal 1 — LiveKit server**
 ```bash
 docker run --rm \
   -p 7880:7880 -p 7881:7881 -p 7882:7882/udp \
@@ -119,116 +177,132 @@ docker run --rm \
   livekit/livekit-server --dev
 ```
 
-### Terminal 2 — FastAPI backend
-
+**Terminal 2 — FastAPI backend**
 ```bash
 cd backend
 source venv/bin/activate
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Terminal 3 — LiveKit agent worker
-
+**Terminal 3 — LiveKit agent worker**
 ```bash
 cd backend
 source venv/bin/activate
 python agent_worker.py dev
 ```
 
-### Terminal 4 — React frontend
-
+**Terminal 4 — React frontend**
 ```bash
 cd frontend
 npm run dev
 ```
 
-Open **http://localhost:5173** in your browser.
+Then open **http://localhost:5173** in your browser.
 
 ---
 
 ## API Keys Reference
 
-| Variable | Where to get |
-|----------|-------------|
+| Environment Variable | Where to Get It |
+|---|---|
 | `OPENROUTER_API_KEY` | https://openrouter.ai/keys |
 | `GROQ_API_KEY` | https://console.groq.com/keys |
 | `DEEPGRAM_API_KEY` | https://console.deepgram.com |
 | `CARTESIA_API_KEY` | https://play.cartesia.ai |
 | `LIVEKIT_URL` | Your LiveKit server URL |
-| `LIVEKIT_API_KEY` | LiveKit dashboard / config |
-| `LIVEKIT_API_SECRET` | LiveKit dashboard / config |
-| `VITE_BP_AGENT_ID` | https://app.beyondpresence.ai (optional) |
+| `LIVEKIT_API_KEY` | LiveKit dashboard / server config |
+| `LIVEKIT_API_SECRET` | LiveKit dashboard / server config |
+| `VITE_BP_AGENT_ID` | https://app.beyondpresence.ai *(optional)* |
 
 ---
 
 ## Conversation Flow
 
-1. User clicks **Start Call** → frontend requests LiveKit token from FastAPI
-2. FastAPI dispatches the agent worker to the room via LiveKit API
-3. Agent connects using LiveKit Agents v1.6.3 `Agent + AgentSession` architecture: Deepgram STT listens, OpenRouter LLM processes, Cartesia TTS responds
-4. Agent broadcasts events over LiveKit data channels:
-   - `transcript` — real-time STT/LLM turn text
-   - `tool-events` — real-time tool status updates
-   - `appointments` — appointment list after mutations
-   - `summary` — end-of-call summary JSON
-   - `state` — speaking/listening state for avatar sync
-5. User clicks **End Call** → `end_conversation` tool generates summary
+```
+1. User clicks "Start Call"
+        │
+        ▼
+2. Frontend requests a LiveKit token from FastAPI
+        │
+        ▼
+3. FastAPI dispatches the agent worker into the room via LiveKit API
+        │
+        ▼
+4. Agent connects (LiveKit Agents v1.6.3):
+   Deepgram STT listens → OpenRouter LLM processes → Cartesia TTS responds
+        │
+        ▼
+5. Agent broadcasts real-time events over LiveKit data channels:
+   ├── transcript   — live STT / LLM turn text
+   ├── tool-events  — tool call status updates
+   ├── appointments — updated appointment list after any mutation
+   ├── summary      — end-of-call JSON summary
+   └── state        — speaking / listening state for avatar sync
+        │
+        ▼
+6. User clicks "End Call" → end_conversation tool generates & broadcasts summary
+```
 
 ---
 
-## Tools
+## Healthcare Tools
 
-The agent uses **8 tools** for healthcare front-desk operations:
+The agent is equipped with **8 purpose-built tools** for front-desk operations:
 
 | Tool | Description |
-|------|-------------|
-| `identify_user` | Collect phone number, look up patient record |
-| `register_patient` | Create a new patient record (called after identify_user returns found=false) |
-| `fetch_slots` | Return hardcoded available appointment slots |
-| `book_appointment` | Save to SQLite, prevent double-booking |
-| `retrieve_appointments` | List user's existing appointments |
-| `modify_appointment` | Reschedule an appointment |
-| `cancel_appointment` | Cancel an appointment |
-| `end_conversation` | Generate & broadcast call summary |
+|---|---|
+| `identify_user` | Collect phone number and look up existing patient record |
+| `register_patient` | Create a new patient record (called when `identify_user` returns `found=false`) |
+| `fetch_slots` | Return available appointment slots |
+| `book_appointment` | Save appointment to SQLite; prevents double-booking |
+| `retrieve_appointments` | List all existing appointments for the patient |
+| `modify_appointment` | Reschedule an existing appointment |
+| `cancel_appointment` | Cancel an existing appointment |
+| `end_conversation` | Generate and broadcast end-of-call summary |
 
 ---
 
-## Beyond Presence Avatar
+## Avatar
 
-Set `VITE_BP_AGENT_ID` in `frontend/.env` to your Beyond Presence agent ID.  
-If blank, the app uses the built-in animated SVG avatar.
+Set `VITE_BP_AGENT_ID` in `frontend/.env` to your Beyond Presence agent ID to enable a live animated avatar. If left blank, the app automatically falls back to the built-in animated SVG avatar.
 
 ---
 
-## Cost Per Call (Estimate)
+## Cost Estimate (Per 5-Minute Call)
 
-| Service | Rate | Per 5-min call |
-|---------|------|---------------|
-| Deepgram Nova-2 | $0.0043/min | ~$0.022 |
-| Cartesia Sonic-2 | ~$0.005/min TTS audio | ~$0.025 |
-| OpenRouter llama-3.3-70b:free | Free | $0.00 |
-| LiveKit | $0.00/min (self-hosted) | $0.00 |
+| Service | Rate | Estimated Cost |
+|---|---|---|
+| Deepgram Nova-2 | $0.0043 / min | ~$0.022 |
+| Cartesia Sonic-2 | ~$0.005 / min | ~$0.025 |
+| OpenRouter Llama 3.3 70B (free tier) | $0.00 | $0.00 |
+| LiveKit (self-hosted) | $0.00 / min | $0.00 |
 | **Total** | | **~$0.05** |
 
 ---
 
 ## Troubleshooting
 
-**Agent doesn't join the room**  
-Verify `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` match in both `.env` and the LiveKit server config.
+**Agent doesn't join the room**
+Verify that `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` match exactly in both your `.env` file and the LiveKit server configuration.
 
-**No audio / STT not working**  
-Browser must have microphone permission. Check HTTPS if deployed (LiveKit requires HTTPS in production).
+**No audio / STT not working**
+The browser must have microphone permission granted. If deploying to production, LiveKit requires HTTPS — ensure your deployment uses a valid TLS certificate.
 
-**OpenRouter 429 / quota exceeded**  
-The agent automatically falls back to Grok. Set `GROQ_API_KEY` to ensure fallback works.
+**OpenRouter 429 / quota exceeded**
+The agent automatically falls back to Grok. Set `GROQ_API_KEY` in your `.env` to ensure the fallback is available.
 
-**SQLite locked errors**  
-Only one agent worker should connect to the same `.db` file at a time. Use unique DB paths per deployment if running multiple workers.
+**SQLite locked errors**
+Only one agent worker should connect to the same `.db` file at a time. If running multiple workers, configure each with a unique database file path.
 
-**livekit-agents chat_context.py IndentationError or AttributeError**  
-Run the included patch script once before starting the worker:
+**`livekit-agents` IndentationError or AttributeError in `chat_context.py`**
+Run the included patch script once before starting the agent worker:
 ```bash
 python fix_livekit_bug.py
 ```
-This fixes a known bug in livekit-agents 1.5.x and 1.6.x where the chat context serializer crashes on plain string system prompts.
+This resolves a known bug in `livekit-agents` 1.5.x and 1.6.x where the chat context serializer crashes on plain string system prompts.
+
+---
+
+## License
+
+MIT
