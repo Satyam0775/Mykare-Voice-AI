@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: mykare-voice-ai-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: LLM_MODEL
+        value: meta-llama/Meta-Llama-3-8B-Instruct
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./healthcare.db
+      - key: DEEPGRAM_STT_MODEL
+        value: nova-2
+      - key: DEEPGRAM_TTS_MODEL
+        value: aura-asteria-en
+      - key: PYTHON_VERSION
+        value: "3.11.0"

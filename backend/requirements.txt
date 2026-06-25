@@ -1,0 +1,47 @@
+# Mykare Voice AI — Python 3.11.9
+
+# ── Web Framework ─────────────────────────────────────────────
+
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+
+# ── LiveKit Core ──────────────────────────────────────────────
+
+livekit==1.1.9
+livekit-api==1.1.0
+
+# ── LiveKit Agents ────────────────────────────────────────────
+
+livekit-agents==1.6.3
+livekit-plugins-deepgram==1.6.3
+livekit-plugins-cartesia==1.6.2
+livekit-plugins-openai==1.6.2
+livekit-plugins-silero==1.6.3
+
+# ── LLM ───────────────────────────────────────────────────────
+
+openai>=1.54.0
+
+# ── Database ──────────────────────────────────────────────────
+
+sqlalchemy[asyncio]==2.0.30
+aiosqlite==0.20.0
+
+# ── Configuration ─────────────────────────────────────────────
+
+pydantic==2.7.1
+pydantic-settings==2.3.1
+python-dotenv==1.0.1
+
+# ── Logging ───────────────────────────────────────────────────
+
+structlog==24.2.0
+
+# ── HTTP ──────────────────────────────────────────────────────
+
+httpx==0.27.0
+
+# ── Utilities ────────────────────────────────────────────────
+
+python-multipart==0.0.9
+python-jose[cryptography]==3.3.0
